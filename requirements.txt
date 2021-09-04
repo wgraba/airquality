@@ -1,3 +1,4 @@
 black
+geopy
 requests
 rich
