@@ -9,6 +9,19 @@ import geopy.distance
 import logging
 import requests
 from typing import List, NamedTuple, Union
+import logging
+from rich import print
+from rich.logging import RichHandler
+from rich.traceback import install
+
+install(show_locals=True)
+
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(rich_tracebacks=True)],
+)
 
 
 logger = logging.getLogger(__name__)
@@ -53,8 +66,12 @@ class Monitor(NamedTuple):
 
 def get_monitors(
     loc: geopy.Point,
+    dist_mi: float,
 ) -> Union[List[Monitor], None]:
-    pass
+    min_point = geopy.distance.distance(miles=dist_mi).destination(loc, bearing=225)
+    max_point = geopy.distance.distance(miles=dist_mi).destination(loc, bearing=45)
+
+    return None
 
 
 if __name__ == "__main__":
@@ -65,12 +82,23 @@ if __name__ == "__main__":
         "postalcode", type=int, help="Postal code to use for search"
     )
     cli_parser.add_argument(
-        "distance", type=int, help="Distance in miles from postalcode to search"
+        "distance", type=float, help="Distance in miles from postalcode to search"
+    )
+    cli_parser.add_argument("api_key", type=str, help="airnow.gov API key")
+
+    cli_parser.add_argument("-b", "--bucket", help="InfluxDB Bucket")
+    cli_parser.add_argument("-o", "--org", help="InfluxDB Organization")
+    cli_parser.add_argument("-t", "--token", help="InfluxDB Token")
+    cli_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Verbose output"
     )
 
-    cli_parser.add_argument("-c", "--config", help="InfluxDB config")
-
     cli_args = cli_parser.parse_args()
+
+    if cli_args.verbose:
+        logger.setLevel(logging.INFO)
+
+    # sess = requests.Session()
 
     logger.info(
         f"Looking for monitors within {cli_args.distance}mi of {cli_args.postalcode}"
