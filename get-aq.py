@@ -27,9 +27,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+AIRNOW_API_URL = "https://www.airnowapi.org/aq/"
+AIRNOW_API_DATA_QUERY_URL = AIRNOW_API_URL + "data/"
+
+
 class SimpleGeocoder:
     def __init__(self) -> None:
-        self._geocoder = geopy.geocoders.Nominatim(user_agent="covid-appointments")
+        self._geocoder = geopy.geocoders.Nominatim(user_agent="get-aq")
 
     def get_loc(self, postalcode: int) -> geopy.Point:
         """
@@ -67,11 +71,34 @@ class Monitor(NamedTuple):
 def get_monitors(
     loc: geopy.Point,
     dist_mi: float,
-) -> Union[List[Monitor], None]:
+    session: requests.Session,
+) -> Union[List[Monitor], List[None]]:
+    """
+    Get nearest monitors for O3, PM2.5, and PM10
+
+    A bounding box as required by the airnow.gov API is calculated from `loc`
+    and `dist_mi`.
+
+    +-------------------------+
+    |                         |
+    |                         |
+    |            *            |
+    |                         |
+    |                         |
+    +-------------------------+
+
+    :param loc: Location to search from
+    :param dist_mi: Distance in miles to search from loc
+    :param session: Request session with API key defaulted
+    :reutrn: List of Monitors
+    """
+    monitors = []
     min_point = geopy.distance.distance(miles=dist_mi).destination(loc, bearing=225)
     max_point = geopy.distance.distance(miles=dist_mi).destination(loc, bearing=45)
 
-    return None
+    # session.get(AIRNOW_API_DATA_QUERY_URL, {})
+
+    return monitors
 
 
 if __name__ == "__main__":
@@ -98,8 +125,16 @@ if __name__ == "__main__":
     if cli_args.verbose:
         logger.setLevel(logging.INFO)
 
-    # sess = requests.Session()
-
     logger.info(
         f"Looking for monitors within {cli_args.distance}mi of {cli_args.postalcode}"
     )
+
+    sess = requests.Session()
+    sess.headers.update({"API_KEY": cli_args.api_key})
+
+    geocoder = SimpleGeocoder()
+    loc = geocoder.get_loc(cli_args.postalcode)
+
+    monitors = get_monitors(loc, cli_args.distance, sess)
+
+    print(monitors)
