@@ -66,6 +66,7 @@ class ConcUnits(enum.Enum):
 
 class Monitor(NamedTuple):
     name: str
+    time: datetime.datetime
     type: MonitorType
     loc: geopy.Point
     distance_mi: float
@@ -133,6 +134,7 @@ def get_monitors(
             mon_loc = geopy.Point(raw_mon["Latitude"], raw_mon["Longitude"])
             monitor = Monitor(
                 name=raw_mon["SiteName"],
+                time=datetime.datetime.fromisoformat(raw_mon["UTC"]),
                 type=MonitorType(raw_mon["Parameter"]),
                 loc=mon_loc,
                 distance_mi=geopy.distance.distance(origin_loc, mon_loc).mi,
