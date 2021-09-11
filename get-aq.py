@@ -10,7 +10,7 @@ import geopy.geocoders
 import geopy.distance
 import logging
 import requests
-from typing import List, NamedTuple, Union
+from typing import Dict, List, NamedTuple, Union
 import logging
 from rich import print
 from rich.logging import RichHandler
@@ -31,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 AIRNOW_API_URL = "https://www.airnowapi.org/aq/"
 AIRNOW_API_DATA_QUERY_URL = AIRNOW_API_URL + "data/"
+POLL_TIME_SLEEP_S = 30 * 60  # Sleep for 30 min. since data at airnow.gov is
+# updated 1/hr
 
 
 class SimpleGeocoder:
@@ -52,20 +54,21 @@ class SimpleGeocoder:
 
 
 class MonitorType(enum.Enum):
-    OZONE = enum.auto()
-    PM2p5 = enum.auto()
-    PM10 = enum.auto()
+    OZONE = "OZONE"
+    PM2p5 = "PM2.5"
+    PM10 = "PM10"
 
 
 class ConcUnits(enum.Enum):
-    UG_M3 = enum.auto()
-    PPB = enum.auto()
+    UG_M3 = "UG/M3"
+    PPB = "PPB"
 
 
 class Monitor(NamedTuple):
     name: str
     type: MonitorType
     loc: geopy.Point
+    distance_mi: float
     aqi: int
     conc: float
     raw_conc: float
@@ -73,12 +76,12 @@ class Monitor(NamedTuple):
 
 
 def get_monitors(
-    loc: geopy.Point,
+    origin_loc: geopy.Point,
     dist_mi: float,
     session: requests.Session,
 ) -> Union[List[Monitor], List[None]]:
     """
-    Get nearest monitors for O3, PM2.5, and PM10
+    Get monitors for O3, PM2.5, and PM10
 
     A bounding box as required by the airnow.gov API is calculated from `loc`
     and `dist_mi`.
@@ -91,14 +94,18 @@ def get_monitors(
     |                         |
     +-------------------------+
 
-    :param loc: Location to search from
+    :param origin_loc: Location to search from
     :param dist_mi: Distance in miles to search from loc
     :param session: Request session with API key defaulted
     :return: List of Monitors
     """
     monitors = []
-    min_point = geopy.distance.distance(miles=dist_mi).destination(loc, bearing=225)
-    max_point = geopy.distance.distance(miles=dist_mi).destination(loc, bearing=45)
+    min_point = geopy.distance.distance(miles=dist_mi).destination(
+        origin_loc, bearing=225
+    )
+    max_point = geopy.distance.distance(miles=dist_mi).destination(
+        origin_loc, bearing=45
+    )
 
     # https://www.airnowapi.org/aq/data/?startDate=2021-09-10T22&endDate=2021-09-10T23&parameters=OZONE,PM25,PM10&BBOX=-106.171227,39.144701,-103.556480,40.427867&dataType=B&format=application/json&verbose=0&monitorType=0&includerawconcentrations=0&API_KEY=20089F4D-6621-46B0-9046-98860751C5E9
     rsp = session.get(
@@ -123,43 +130,38 @@ def get_monitors(
 
     if raw_monitors:
         for raw_mon in raw_monitors:
-            # Parse Monitor Type
-            mon_type = None
-            if raw_mon["Parameter"] == "OZONE":
-                mon_type = MonitorType.OZONE
-
-            elif raw_mon["Parameter"] == "PM2.5":
-                mon_type = MonitorType.PM2p5
-
-            elif raw_mon["Parameter"] == "PM10":
-                mon_type = MonitorType.PM10
-
-            if not mon_type:
-                raise ValueError(f"Unknown Monitor Type {raw_mon['Parameter']}")
-
-            # Parse Concentration Units
-            conc_units = None
-            if raw_mon["Unit"] == "UG/M3":
-                conc_units = ConcUnits.UG_M3
-
-            elif raw_mon["Unit"] == "PPB":
-                conc_units = ConcUnits.PPB
-
-            if not conc_units:
-                raise ValueError(f"Unkown Concentation Units {raw_mon['Unit']}")
-
+            mon_loc = geopy.Point(raw_mon["Latitude"], raw_mon["Longitude"])
             monitor = Monitor(
                 name=raw_mon["SiteName"],
-                type=mon_type,
-                loc=geopy.Point(raw_mon["Latitude"], raw_mon["Longitude"]),
+                type=MonitorType(raw_mon["Parameter"]),
+                loc=mon_loc,
+                distance_mi=geopy.distance.distance(origin_loc, mon_loc).mi,
                 aqi=raw_mon["AQI"],
                 conc=raw_mon["Value"],
                 raw_conc=raw_mon["RawConcentration"],
-                conc_units=conc_units,
+                conc_units=ConcUnits(raw_mon["Unit"]),
             )
             monitors.append(monitor)
 
+            logger.debug(monitor)
+
     return monitors
+
+
+def get_closest_monitors(monitors: List[Monitor]) -> Dict:
+    closest_mons = {
+        MonitorType.OZONE: None,
+        MonitorType.PM2p5: None,
+        MonitorType.PM10: None,
+    }
+
+    for monitor in monitors:
+        if closest_mons[monitor.type] is None or abs(monitor.distance_mi) < abs(
+            closest_mons[monitor.type].distance_mi
+        ):
+            closest_mons[monitor.type] = monitor
+
+    return closest_mons
 
 
 if __name__ == "__main__":
@@ -197,5 +199,7 @@ if __name__ == "__main__":
     loc = geocoder.get_loc(cli_args.postalcode)
 
     monitors = get_monitors(loc, cli_args.distance, sess)
+    if len(monitors) > 0:
+        monitors = get_closest_monitors(monitors)
 
     print(monitors)
