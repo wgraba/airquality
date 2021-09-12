@@ -14,6 +14,7 @@ from typing import Dict, List, NamedTuple, Union
 import logging
 from rich import print
 from rich.logging import RichHandler
+from rich.table import Table
 from rich.traceback import install
 
 install(show_locals=True)
@@ -58,10 +59,16 @@ class MonitorType(enum.Enum):
     PM2p5 = "PM2.5"
     PM10 = "PM10"
 
+    def __str__(self) -> str:
+        return self.value
+
 
 class ConcUnits(enum.Enum):
     UG_M3 = "UG/M3"
     PPB = "PPB"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class Monitor(NamedTuple):
@@ -204,4 +211,24 @@ if __name__ == "__main__":
     if len(monitors) > 0:
         monitors = get_closest_monitors(monitors)
 
-    print(monitors)
+        mon_table = Table(title="Closest Monitors")
+        mon_table.add_column("Time(UTC)")
+        mon_table.add_column("Name")
+        mon_table.add_column("Distance(mi)")
+        mon_table.add_column("Type")
+        mon_table.add_column("AQI")
+        mon_table.add_column("Concentration")
+
+        for monitor in monitors.values():
+            mon_table.add_row(
+                str(monitor.time),
+                str(monitor.name),
+                f"{monitor.distance_mi:0.2f}",
+                str(monitor.type),
+                str(monitor.aqi),
+                f"{monitor.conc:0.1f}{monitor.conc_units}",
+            )
+
+        print(mon_table)
+
+    # print(monitors)
