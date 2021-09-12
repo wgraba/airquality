@@ -4,6 +4,7 @@
 import argparse
 import datetime
 import enum
+from influxdb_client import InfluxDBClient
 from json.decoder import JSONDecodeError
 import geopy
 import geopy.geocoders
@@ -158,6 +159,12 @@ def get_monitors(
 
 
 def get_closest_monitors(monitors: List[Monitor]) -> Dict:
+    """
+    Get closest monitors for each pollutant type
+
+    :param monitors: List of nearby monitors to search through
+    :return: Dictionary by pollutant type of closest monitors
+    """
     closest_mons = {
         MonitorType.OZONE: None,
         MonitorType.PM2p5: None,
@@ -171,6 +178,38 @@ def get_closest_monitors(monitors: List[Monitor]) -> Dict:
             closest_mons[monitor.type] = monitor
 
     return closest_mons
+
+
+def write_influxdb(client: InfluxDBClient, bucket: str, monitor: Monitor):
+    """
+    Write monitors to Influxdb
+
+    :param client: InfluxDB client
+    :param bucket: Bucket to write to
+    :param monitors: Dictionary of monitors by pollutant type to write to
+                     database
+    """
+    write_api = client.write_api()
+
+    logger.debug(f"Writing {monitor} to {bucket} in {client.org}@{client.url}")
+
+    point = {
+        "time": monitor.time,
+        "measurement": monitor.type,
+        "tags": {
+            "name": monitor.name,
+            "longitude": monitor.loc.longitude,
+            "latitude": monitor.loc.latitude,
+            "distance": monitor.distance_mi,
+            "units": monitor.conc_units,
+        },
+        "fields": {
+            "AQI": monitor.aqi,
+            "Concentration": monitor.conc,
+            "Raw Concentration": monitor.raw_conc,
+        },
+    }
+    write_api.write(bucket=bucket, record=point)
 
 
 if __name__ == "__main__":
@@ -188,6 +227,7 @@ if __name__ == "__main__":
     cli_parser.add_argument("-b", "--bucket", help="InfluxDB Bucket")
     cli_parser.add_argument("-o", "--org", help="InfluxDB Organization")
     cli_parser.add_argument("-t", "--token", help="InfluxDB Token")
+    cli_parser.add_argument("-u", "--url", help="InfluxDB URL")
     cli_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Verbose output"
     )
@@ -206,6 +246,16 @@ if __name__ == "__main__":
 
     geocoder = SimpleGeocoder()
     loc = geocoder.get_loc(cli_args.postalcode)
+
+    if cli_args.url and cli_args.token and cli_args.org and cli_args.bucket:
+        influx_client = InfluxDBClient(
+            url=cli_args.url, token=cli_args.token, org=cli_args.url
+        )
+
+        logger.info(f"InfluxDB: {cli_args.org}@{cli_args.url}")
+
+    else:
+        influx_client = None
 
     monitors = get_monitors(loc, cli_args.distance, sess)
     if len(monitors) > 0:
@@ -228,6 +278,9 @@ if __name__ == "__main__":
                 str(monitor.aqi),
                 f"{monitor.conc:0.1f}{monitor.conc_units}",
             )
+
+            if influx_client:
+                write_influxdb(influx_client, cli_args.bucket, monitor)
 
         print(mon_table)
 
