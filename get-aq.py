@@ -89,7 +89,7 @@ def get_monitors(
     origin_loc: geopy.Point,
     dist_mi: float,
     session: requests.Session,
-) -> Union[List[Monitor], List[None]]:
+) -> Union[List[Monitor], None]:
     """
     Get monitors for O3, PM2.5, and PM10
 
@@ -107,7 +107,7 @@ def get_monitors(
     :param origin_loc: Location to search from
     :param dist_mi: Distance in miles to search from loc
     :param session: Request session with API key defaulted
-    :return: List of Monitors
+    :return: List of Monitors or None if no monitors found
     """
     monitors = []
     min_point = geopy.distance.distance(miles=dist_mi).destination(
@@ -156,7 +156,7 @@ def get_monitors(
 
             logger.debug(monitor)
 
-    return monitors
+    return monitors if len(monitors) > 0 else None
 
 
 def get_closest_monitors(monitors: List[Monitor]) -> Dict:
@@ -166,14 +166,15 @@ def get_closest_monitors(monitors: List[Monitor]) -> Dict:
     :param monitors: List of nearby monitors to search through
     :return: Dictionary by pollutant type of closest monitors
     """
-    closest_mons = {
-        MonitorType.OZONE: None,
-        MonitorType.PM2p5: None,
-        MonitorType.PM10: None,
-    }
+    # closest_mons = {
+    #     MonitorType.OZONE: None,
+    #     MonitorType.PM2p5: None,
+    #     MonitorType.PM10: None,
+    # }
+    closest_mons = {}
 
     for monitor in monitors:
-        if closest_mons[monitor.type] is None or abs(monitor.distance_mi) < abs(
+        if monitor.type not in closest_mons or abs(monitor.distance_mi) < abs(
             closest_mons[monitor.type].distance_mi
         ):
             closest_mons[monitor.type] = monitor
@@ -215,7 +216,7 @@ def write_influxdb(client: InfluxDBClient, bucket: str, monitor: Monitor):
 
 if __name__ == "__main__":
     cli_parser = argparse.ArgumentParser(
-        description="Get closest monitors for O3, PM2.5, and PM10.0 and optionally put into InfluxDB"
+        description="Get closest monitors for pollutants and optionally put into InfluxDB"
     )
     cli_parser.add_argument(
         "postalcode", type=int, help="Postal code to use for search"
@@ -267,7 +268,7 @@ if __name__ == "__main__":
         influx_client = None
 
     monitors = get_monitors(loc, cli_args.distance, sess)
-    if len(monitors) > 0:
+    if monitors:
         monitors = get_closest_monitors(monitors)
 
         mon_table = Table(title="Closest Monitors")
@@ -292,5 +293,8 @@ if __name__ == "__main__":
                 write_influxdb(influx_client, cli_args.bucket, monitor)
 
         print(mon_table)
+
+    else:
+        logger.error(f"No monitors found!")
 
     # print(monitors)
