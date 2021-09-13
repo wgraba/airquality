@@ -13,6 +13,7 @@ Get stats from nearest airnow.gov sensors and push into influxdb.
 
 ## TODO
 - [x] Get closest monitors for each pollutant type and output to console
-- [ ] Implement push of monitor data to Influxdb
+- [x] Implement push of monitor data to Influxdb
 - [ ] Add example `Dockerfile`
 - [ ] Add example `docker-compose.yml`
+- [ ] Handle TLS besides ignoring for Influxdb connection

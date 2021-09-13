@@ -5,6 +5,7 @@ import argparse
 import datetime
 import enum
 from influxdb_client import InfluxDBClient
+from influxdb_client.client.write_api import SYNCHRONOUS
 from json.decoder import JSONDecodeError
 import geopy
 import geopy.geocoders
@@ -189,12 +190,12 @@ def write_influxdb(client: InfluxDBClient, bucket: str, monitor: Monitor):
     :param monitors: Dictionary of monitors by pollutant type to write to
                      database
     """
-    write_api = client.write_api()
+    write_api = client.write_api(write_options=SYNCHRONOUS)
 
     logger.debug(f"Writing {monitor} to {bucket} in {client.org}@{client.url}")
 
     point = {
-        "time": monitor.time,
+        "time": monitor.time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "measurement": monitor.type,
         "tags": {
             "name": monitor.name,
@@ -229,13 +230,21 @@ if __name__ == "__main__":
     cli_parser.add_argument("-t", "--token", help="InfluxDB Token")
     cli_parser.add_argument("-u", "--url", help="InfluxDB URL")
     cli_parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Verbose output"
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Verbose output; can be used multiple times to increase verbosity",
     )
 
     cli_args = cli_parser.parse_args()
 
-    if cli_args.verbose:
-        logger.setLevel(logging.INFO)
+    if cli_args.verbose > 0:
+        if cli_args.verbose > 1:
+            logger.setLevel(logging.DEBUG)
+
+        else:
+            logger.setLevel(logging.INFO)
 
     logger.info(
         f"Looking for monitors within {cli_args.distance}mi of {cli_args.postalcode}"
@@ -249,7 +258,7 @@ if __name__ == "__main__":
 
     if cli_args.url and cli_args.token and cli_args.org and cli_args.bucket:
         influx_client = InfluxDBClient(
-            url=cli_args.url, token=cli_args.token, org=cli_args.url
+            url=cli_args.url, token=cli_args.token, org=cli_args.org, verify_ssl=False
         )
 
         logger.info(f"InfluxDB: {cli_args.org}@{cli_args.url}")
