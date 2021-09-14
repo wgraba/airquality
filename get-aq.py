@@ -18,6 +18,7 @@ from rich import print
 from rich.logging import RichHandler
 from rich.table import Table
 from rich.traceback import install
+import time
 
 install(show_locals=True)
 
@@ -228,6 +229,13 @@ if __name__ == "__main__":
 
     cli_parser.add_argument("-b", "--bucket", help="InfluxDB Bucket")
     cli_parser.add_argument("-o", "--org", help="InfluxDB Organization")
+    cli_parser.add_argument(
+        "-s",
+        "--sleep",
+        type=float,
+        default=POLL_TIME_SLEEP_S,
+        help=f"Time to sleep between airnow.gov reads; default {POLL_TIME_SLEEP_S}s",
+    )
     cli_parser.add_argument("-t", "--token", help="InfluxDB Token")
     cli_parser.add_argument("-u", "--url", help="InfluxDB URL")
     cli_parser.add_argument(
@@ -267,34 +275,39 @@ if __name__ == "__main__":
     else:
         influx_client = None
 
-    monitors = get_monitors(loc, cli_args.distance, sess)
-    if monitors:
-        monitors = get_closest_monitors(monitors)
+    try:
+        monitors = get_monitors(loc, cli_args.distance, sess)
+        if monitors:
+            monitors = get_closest_monitors(monitors)
 
-        mon_table = Table(title="Closest Monitors")
-        mon_table.add_column("Time(UTC)")
-        mon_table.add_column("Name")
-        mon_table.add_column("Distance(mi)")
-        mon_table.add_column("Type")
-        mon_table.add_column("AQI")
-        mon_table.add_column("Concentration")
+            mon_table = Table(title="Closest Monitors")
+            mon_table.add_column("Time(UTC)")
+            mon_table.add_column("Name")
+            mon_table.add_column("Distance(mi)")
+            mon_table.add_column("Type")
+            mon_table.add_column("AQI")
+            mon_table.add_column("Concentration")
 
-        for monitor in monitors.values():
-            mon_table.add_row(
-                str(monitor.time),
-                str(monitor.name),
-                f"{monitor.distance_mi:0.2f}",
-                str(monitor.type),
-                str(monitor.aqi),
-                f"{monitor.conc:0.1f}{monitor.conc_units}",
-            )
+            for monitor in monitors.values():
+                mon_table.add_row(
+                    str(monitor.time),
+                    str(monitor.name),
+                    f"{monitor.distance_mi:0.2f}",
+                    str(monitor.type),
+                    str(monitor.aqi),
+                    f"{monitor.conc:0.1f}{monitor.conc_units}",
+                )
 
-            if influx_client:
-                write_influxdb(influx_client, cli_args.bucket, monitor)
+                if influx_client:
+                    write_influxdb(influx_client, cli_args.bucket, monitor)
 
-        print(mon_table)
+            print(mon_table)
 
-    else:
-        logger.error(f"No monitors found!")
+        else:
+            logger.error(f"No monitors found!")
 
-    # print(monitors)
+        logger.info(f"Sleeping for {cli_args.sleep}s")
+        time.sleep(cli_args.sleep)
+
+    except KeyboardInterrupt:
+        print("Quitting...")
