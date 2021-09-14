@@ -25,3 +25,4 @@ Get stats from nearest airnow.gov monitors and push into InfluxDB.
 - [x] Add example `docker-compose.yml`
 - [x] Add example environment file for docker-compose
 - [ ] Handle TLS instead of ignoring for InfluxDB connection
+- [ ] Poll airnow.gov at top of hour since that is when sensos are updated
