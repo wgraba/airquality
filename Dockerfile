@@ -17,14 +17,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY get-aq.py .
 
-CMD [ \
-    "python", \
-    "./get-aq.py", \
-    "${POSTAL_CODE}", \
-    "${DISTANCE_MI}", \
-    "${API_KEY}", \
-    "--bucket", "{$INFLUX_BUCKET}", \
-    "--org", "{$INFLUX_ORG}", \
-    "--token", "{$INFLUX_TOKEN}", \
-    "--url", "${INFLUX_URL}" \
-    ]
+CMD python ./get-aq.py ${POSTAL_CODE} ${DISTANCE_MI} "${API_KEY}" \
+--bucket "${INFLUX_BUCKET}" --org "${INFLUX_ORG}" --token "${INFLUX_TOKEN}" \
+--url "$INFLUX_URL"

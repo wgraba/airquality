@@ -9,7 +9,7 @@ Get stats from nearest airnow.gov monitors and push into InfluxDB.
 * Install Python requirements - `pip install -r requirements.txt`
 * Run `python ./get-aq.py --help`
 
-### With Docker
+### With Docker Compose
 * Install Docker and Docker Compose
 * Create environment file `.env`; use `example_env` as template
 * Run `docker-compose up -d`

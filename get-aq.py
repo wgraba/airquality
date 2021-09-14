@@ -275,39 +275,41 @@ if __name__ == "__main__":
     else:
         influx_client = None
 
-    try:
-        monitors = get_monitors(loc, cli_args.distance, sess)
-        if monitors:
-            monitors = get_closest_monitors(monitors)
+    while True:
+        try:
+            monitors = get_monitors(loc, cli_args.distance, sess)
+            if monitors:
+                monitors = get_closest_monitors(monitors)
 
-            mon_table = Table(title="Closest Monitors")
-            mon_table.add_column("Time(UTC)")
-            mon_table.add_column("Name")
-            mon_table.add_column("Distance(mi)")
-            mon_table.add_column("Type")
-            mon_table.add_column("AQI")
-            mon_table.add_column("Concentration")
+                mon_table = Table(title="Closest Monitors")
+                mon_table.add_column("Time(UTC)")
+                mon_table.add_column("Name")
+                mon_table.add_column("Distance(mi)")
+                mon_table.add_column("Type")
+                mon_table.add_column("AQI")
+                mon_table.add_column("Concentration")
 
-            for monitor in monitors.values():
-                mon_table.add_row(
-                    str(monitor.time),
-                    str(monitor.name),
-                    f"{monitor.distance_mi:0.2f}",
-                    str(monitor.type),
-                    str(monitor.aqi),
-                    f"{monitor.conc:0.1f}{monitor.conc_units}",
-                )
+                for monitor in monitors.values():
+                    mon_table.add_row(
+                        str(monitor.time),
+                        str(monitor.name),
+                        f"{monitor.distance_mi:0.2f}",
+                        str(monitor.type),
+                        str(monitor.aqi),
+                        f"{monitor.conc:0.1f}{monitor.conc_units}",
+                    )
 
-                if influx_client:
-                    write_influxdb(influx_client, cli_args.bucket, monitor)
+                    if influx_client:
+                        write_influxdb(influx_client, cli_args.bucket, monitor)
 
-            print(mon_table)
+                print(mon_table)
 
-        else:
-            logger.error(f"No monitors found!")
+            else:
+                logger.error(f"No monitors found!")
 
-        logger.info(f"Sleeping for {cli_args.sleep}s")
-        time.sleep(cli_args.sleep)
+            logger.info(f"Sleeping for {cli_args.sleep}s")
+            time.sleep(cli_args.sleep)
 
-    except KeyboardInterrupt:
-        print("Quitting...")
+        except KeyboardInterrupt:
+            print("Quitting...")
+            break
