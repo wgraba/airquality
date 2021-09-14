@@ -5,3 +5,4 @@ INFLUX_BUCKET=mybucket
 INFLUX_ORG=myorg
 INFLUX_TOKEN=mytoken
 INFLUX_URL=https://influx.local.lan
+POLL_TIME_S=1800
