@@ -5,8 +5,14 @@ Get stats from nearest airnow.gov monitors and push into InfluxDB.
 * Python 3.6+
 
 ## Usage
+### Without Docker
 * Install Python requirements - `pip install -r requirements.txt`
 * Run `python ./get-aq.py --help`
+
+### With Docker
+* Install Docker and Docker Compose
+* Create environment file `.env`; use `example_env` as template
+* Run `docker-compose up -d`
 
 ## Development
 * Install Python requirements - `pip install -r requirements.txt`
@@ -15,7 +21,7 @@ Get stats from nearest airnow.gov monitors and push into InfluxDB.
 ## TODO
 - [x] Get closest monitors for each pollutant type and output to console
 - [x] Implement push of monitor data to Influxdb
-- [ ] Add example `Dockerfile`
-- [ ] Add example `docker-compose.yml`
-- [ ] Add example environment file for docker-compose
-- [ ] Handle TLS besides ignoring for InfluxDB connection
+- [x] Add example `Dockerfile`
+- [x] Add example `docker-compose.yml`
+- [x] Add example environment file for docker-compose
+- [ ] Handle TLS instead of ignoring for InfluxDB connection
