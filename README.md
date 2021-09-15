@@ -32,8 +32,8 @@ that I could publish to a dashboard for quick viewing.
 
 The intent of the design is pretty simple -
 * Get location of interest (origin)
-* Calculate bounding box around origin and find monitors within bounding box from
-  AirNow
+* Calculate bounding box around origin and find monitors within bounding box 
+  from AirNow
 * Find closest monitors for each pollutant type
 * Optionally push into InfluxDB
 
@@ -47,5 +47,7 @@ The intent of the design is pretty simple -
 - [ ] Option to enter long., lat. for origin instead of postal code
   - [x] CLI
   - [ ] Docker
-- [ ] Consider monitor distance and loc. coords. as InfluxDB Fields instead of Tags
+- [x] Consider monitor distance and loc. coords. as InfluxDB Fields instead of
+      Tags
+- [x] Add unique monitor ID as Tag in InfluxDV
 - [ ] Is there a better way to handle cords. vs postal code on CLI

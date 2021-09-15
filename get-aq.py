@@ -76,6 +76,7 @@ class ConcUnits(enum.Enum):
 
 class Monitor(NamedTuple):
     name: str
+    aqs_id: int
     time: datetime.datetime
     type: MonitorType
     loc: geopy.Point
@@ -144,6 +145,7 @@ def get_monitors(
             mon_loc = geopy.Point(raw_mon["Latitude"], raw_mon["Longitude"])
             monitor = Monitor(
                 name=raw_mon["SiteName"],
+                aqs_id=raw_mon["IntlAQSCode"],
                 time=datetime.datetime.fromisoformat(raw_mon["UTC"]),
                 type=MonitorType(raw_mon["Parameter"]),
                 loc=mon_loc,
@@ -201,15 +203,16 @@ def write_influxdb(client: InfluxDBClient, bucket: str, monitor: Monitor):
         "measurement": monitor.type,
         "tags": {
             "name": monitor.name,
-            "longitude": monitor.loc.longitude,
-            "latitude": monitor.loc.latitude,
-            "distance": monitor.distance_mi,
+            "id": monitor.aqs_id,
             "units": monitor.conc_units,
         },
         "fields": {
             "AQI": monitor.aqi,
             "Concentration": monitor.conc,
             "Raw Concentration": monitor.raw_conc,
+            "longitude": monitor.loc.longitude,
+            "latitude": monitor.loc.latitude,
+            "distance": monitor.distance_mi,
         },
     }
     write_api.write(bucket=bucket, record=point)
