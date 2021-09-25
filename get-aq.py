@@ -20,7 +20,7 @@ from rich.table import Table
 from rich.traceback import install
 import time
 
-install(show_locals=True)
+install(show_locals=False)
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -241,6 +241,14 @@ if __name__ == "__main__":
     )
     cli_parser.add_argument("-t", "--token", help="InfluxDB Token")
     cli_parser.add_argument("-u", "--url", help="InfluxDB URL")
+
+    cli_parser.add_argument(
+        "-i",
+        "--ignore_ssl",
+        action="store_true",
+        default=False,
+        help="Ignore TLS certs - use with caution!",
+    )
     cli_parser.add_argument(
         "-v",
         "--verbose",
@@ -263,6 +271,9 @@ if __name__ == "__main__":
     )
 
     sess = requests.Session()
+    if cli_args.ignore_ssl:
+        sess.verify = False
+
     sess.params = {"api_key": cli_args.api_key}
 
     geocoder = SimpleGeocoder()
@@ -311,8 +322,9 @@ if __name__ == "__main__":
                 logger.error(f"No monitors found!")
 
             logger.info(f"Sleeping for {cli_args.sleep}s")
-            time.sleep(cli_args.sleep)
 
         except KeyboardInterrupt:
             print("Quitting...")
             break
+
+        time.sleep(cli_args.sleep)
